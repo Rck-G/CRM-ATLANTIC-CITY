@@ -1,0 +1,286 @@
+GUÍA DE INSTALACIÓN Y EJECUCIÓN CRM ATLANTIC CITY
+================================
+
+Objetivo
+
+Este documento explica cómo preparar el entorno de un compañero para
+ejecutar CRM ATLANTIC CITY en Windows, conectar SQL Server, crear la
+base de datos, cargar el esquema y los datos de demostración, y arrancar
+la aplicación.
+
+IMPORTANTE: cada compañero debe tener su propia instalación local de SQL
+Server (o acceso a una instancia compartida) y configurar sus propias
+credenciales. No compartan contraseñas reales ni secretos de producción.
+
+1. REQUISITOS PREVIOS
+
+Instalar en el equipo:
+
+-   Node.js (preferentemente una versión LTS compatible con el
+    proyecto).
+-   npm (se instala junto con Node.js).
+-   Microsoft SQL Server Developer o Express.
+-   SQL Server Management Studio (SSMS).
+-   El proyecto CRM ATLANTIC CITY completo.
+
+Comprobar Node.js y npm desde PowerShell:
+
+    node -v
+    npm -v
+
+Si alguno de esos comandos no se reconoce, instalar Node.js y abrir una
+nueva ventana de PowerShell.
+
+2. COPIAR Y ABRIR EL PROYECTO
+
+1.  Copiar la carpeta completa del proyecto al equipo.
+2.  Extraer el ZIP si se entregó comprimido.
+3.  Abrir PowerShell en la carpeta raíz del proyecto.
+
+Ejemplo:
+
+    cd C:\Users\USUARIO\Desktop\CRM-ATLANTIC-CITY
+
+La carpeta raíz debe contener el archivo package.json y las carpetas del
+proyecto (por ejemplo, backend y frontend, según la estructura
+entregada).
+
+No ejecutar los comandos desde una carpeta distinta.
+
+3. INSTALAR LAS DEPENDENCIAS
+
+Desde la carpeta raíz, ejecutar:
+
+    npm install
+
+Esperar a que termine. Si el proyecto tiene dependencias separadas para
+backend y frontend, revisar el README o los scripts de package.json y
+ejecutar npm install en las carpetas indicadas por el proyecto.
+
+No borrar package-lock.json si se entrega con el proyecto.
+
+4. PREPARAR SQL SERVER
+
+1.  Abrir SQL Server Management Studio.
+
+2.  Conectarse a la instancia local de SQL Server.
+
+    -   En una instalación local puede ser localhost, localhost o el
+        nombre de instancia configurado durante la instalación.
+    -   El valor debe coincidir con DB_SERVER en el archivo .env.
+
+3.  Crear una base de datos llamada:
+
+        crm_atlantic_city
+
+4.  Abrir el archivo schema.sql incluido en el proyecto.
+
+5.  Seleccionar la base de datos crm_atlantic_city y ejecutar el script.
+
+6.  Verificar que se hayan creado las tablas sin errores.
+
+Si el proyecto usa autenticación SQL Server, debe existir un login SQL y
+un usuario de base de datos con acceso a crm_atlantic_city. En este
+proyecto se ha utilizado el usuario SQL crm_app. Cada instalación puede
+necesitar que el administrador de SQL Server cree ese login y le conceda
+los permisos necesarios para ejecutar la aplicación y el seed.
+
+Si se utiliza otro usuario o contraseña, actualizar DB_USER y
+DB_PASSWORD en el .env. No asumir que el usuario crm_app existe
+automáticamente en el equipo de cada compañero.
+
+NOTA: si se utiliza autenticación de Windows en vez de autenticación
+SQL, la configuración actual del proyecto puede requerir ajustes en el
+código o en la configuración de conexión. La guía presupone la
+configuración SQL (user/password) usada por este proyecto.
+
+5. CONFIGURAR EL ARCHIVO .ENV
+
+Crear o copiar el archivo .env en la ubicación raíz del proyecto, junto
+a package.json (y no dentro de backend, salvo que el proyecto se haya
+modificado).
+
+Usar esta plantilla como referencia y reemplazar los valores de ejemplo:
+
+    PORT=3000
+    HOST=127.0.0.1
+
+    DB_SERVER=localhost
+    DB_PORT=1433
+    DB_NAME=crm_atlantic_city
+    DB_USER=crm_app
+    DB_PASSWORD=COLOCA_AQUI_LA_CONTRASENA_SQL
+    DB_ENCRYPT=false
+    DB_TRUST_SERVER_CERTIFICATE=true
+
+    JWT_SECRET=COLOCA_UN_SECRETO_ALEATORIO_LARGO
+    JWT_EXPIRES_IN=8h
+    FRONTEND_ORIGIN=http://localhost:3000
+    INTEGRATION_WEBHOOK_SECRET=COLOCA_OTRO_SECRETO_ALEATORIO
+
+Consideraciones:
+
+-   DB_SERVER debe coincidir con la instancia real de SQL Server del
+    equipo.
+-   DB_PORT debe coincidir con el puerto TCP configurado en SQL Server.
+    El puerto habitual es 1433, pero puede ser distinto.
+-   DB_NAME debe ser crm_atlantic_city, salvo que se cambie también en
+    la configuración del proyecto.
+-   DB_USER y DB_PASSWORD deben corresponder a un login SQL válido con
+    acceso a esa base de datos.
+-   En el código revisado, la variable reconocida para el certificado es
+    DB_TRUST_SERVER_CERTIFICATE. No usar DB_TRUST_CERT porque no es el
+    nombre que lee db.js y seed-demo.js.
+-   Sustituir JWT_SECRET e INTEGRATION_WEBHOOK_SECRET por valores
+    aleatorios largos y privados. No dejar los textos de ejemplo.
+-   No subir .env a Git ni enviarlo en un ZIP compartido.
+-   El seed-demo.js carga el archivo .env desde la carpeta raíz del
+    proyecto usando una ruta relativa a su ubicación. Mantener esa
+    estructura o adaptar la ruta si se mueve el script.
+
+Si se entrega un archivo .env.example, copiarlo como .env y completar
+los valores locales. El archivo .env real debe permanecer privado.
+
+6. CARGAR LOS DATOS DE DEMOSTRACIÓN
+
+El proyecto incluye un seed de demostración. Solo debe ejecutarse en una
+base de datos de desarrollo o prueba, nunca en producción.
+
+Abrir PowerShell en la carpeta raíz del proyecto y ejecutar:
+
+    $env:SEED_DEMO_DATA="true"
+    npm run seed:demo
+
+La variable SEED_DEMO_DATA habilita expresamente la carga demo. El
+script también bloquea la ejecución cuando NODE_ENV está definido como
+production.
+
+Al finalizar, revisar los mensajes de PowerShell. El seed informa las
+cuentas demo y la carga de catálogos y operaciones de ejemplo.
+
+IMPORTANTE SOBRE LAS CUENTAS: - El seed crea las cuentas que no
+existen. - Las cuentas existentes no se sobrescriben. - Si una cuenta
+demo ya existía, la contraseña guardada puede no coincidir con la
+contraseña definida actualmente en seed-demo.js. - Las contraseñas se
+almacenan como hash bcrypt; no se pueden leer en texto plano desde SQL
+Server.
+
+Credenciales de demostración definidas en el seed revisado:
+
+PERSONAL - Administrador: admin@demo.atlantic.local Contraseña inicial:
+DemoAdmin#2026 - Empleado: manager@demo.atlantic.local Contraseña
+inicial: DemoManager#2026 - Marketing: marketing@demo.atlantic.local
+Contraseña inicial: DemoMarketing#2026
+
+CLIENTES - lucia.ramirez@demo.atlantic.local / DemoCliente#101 -
+mateo.fernandez@demo.atlantic.local / DemoCliente#102 -
+valentina.torres@demo.atlantic.local / DemoCliente#103
+
+Estas contraseñas son únicamente para demostración local. Cambiarlas
+antes de cualquier uso real y no reutilizarlas en producción.
+
+7. INICIAR EL PROYECTO
+
+Desde la carpeta raíz, revisar los scripts disponibles en package.json:
+
+    npm run
+
+Ese comando muestra los scripts definidos por el proyecto. Ejecutar el
+script de desarrollo que aparezca allí (por ejemplo, npm run dev si está
+definido).
+
+No asumir que todos los proyectos usan el mismo comando. Si el proyecto
+incluye instrucciones README, seguirlas.
+
+Cuando el servidor indique que está escuchando en el puerto configurado,
+abrir el navegador en:
+
+    http://localhost:3000
+
+Si se configuró otro PORT, utilizar ese puerto en la dirección.
+
+8. ORDEN RECOMENDADO PARA UNA INSTALACIÓN NUEVA
+
+Seguir este orden:
+
+1.  Instalar Node.js y SQL Server.
+
+2.  Copiar y extraer el proyecto.
+
+3.  Abrir PowerShell en la carpeta raíz.
+
+4.  Ejecutar npm install.
+
+5.  Crear la base de datos crm_atlantic_city en SQL Server.
+
+6.  Ejecutar schema.sql desde SSMS.
+
+7.  Crear/configurar el login SQL y sus permisos.
+
+8.  Crear el archivo .env con los datos de conexión locales.
+
+9.  Ejecutar $env:SEED_DEMO_DATA=“true”.
+
+10. Ejecutar npm run seed:demo.
+
+11. Consultar npm run para ver el comando de inicio.
+
+12. Arrancar la aplicación y abrir http://localhost:3000.
+
+13. PROBLEMAS FRECUENTES
+
+A)  Error de conexión a SQL Server
+
+-   Confirmar que el servicio SQL Server está iniciado.
+-   Confirmar DB_SERVER y DB_PORT.
+-   Verificar que TCP/IP esté habilitado si se conecta por TCP.
+-   Comprobar que DB_USER y DB_PASSWORD sean correctos.
+-   Confirmar que el usuario tenga acceso a crm_atlantic_city.
+
+B)  Error “Cannot find object dbo.users” o tabla inexistente
+
+-   En SSMS ejecutar SELECT DB_NAME(); para confirmar la base
+    seleccionada.
+-   Verificar que schema.sql se ejecutó correctamente en
+    crm_atlantic_city.
+-   Confirmar que dbo.users exista.
+-   Comprobar que el usuario SQL configurado en .env tenga permisos
+    sobre las tablas.
+
+C)  Error indicando que falta SEED_DEMO_DATA=true Ejecutar en la misma
+    ventana de PowerShell:
+
+    $env:SEED_DEMO_DATA=“true” npm run seed:demo
+
+D)  El inicio de sesión rechaza una contraseña demo
+
+-   Verificar que se esté usando el correo exacto.
+-   Recordar que el seed no cambia las contraseñas de cuentas que ya
+    existen.
+-   Si la cuenta fue creada anteriormente con otra contraseña, utilizar
+    el mecanismo de restablecimiento del proyecto o actualizarla
+    mediante un procedimiento seguro que genere un nuevo hash bcrypt.
+-   No escribir una contraseña en la columna password_hash directamente.
+
+E)  El puerto 3000 está ocupado
+
+-   Cerrar el proceso que lo está utilizando o cambiar PORT en .env.
+-   Abrir el navegador usando el puerto configurado.
+
+10. BUENAS PRÁCTICAS PARA TRABAJAR EN EQUIPO
+
+-   Cada compañero debe tener su propio .env local.
+-   No compartir DB_PASSWORD, JWT_SECRET ni INTEGRATION_WEBHOOK_SECRET.
+-   No incluir node_modules en el ZIP de entrega; cada compañero ejecuta
+    npm install.
+-   Mantener package.json y package-lock.json en la entrega.
+-   Compartir schema.sql y seed-demo.js junto con el proyecto.
+-   Usar bases de datos separadas para desarrollo y pruebas cuando sea
+    posible.
+-   No ejecutar el seed sobre una base de datos real.
+-   Antes de modificar tablas o datos importantes, realizar una copia de
+    seguridad.
+-   Si se modifica el esquema de la base de datos, compartir el cambio
+    SQL con todos los integrantes del equipo.
+
+FIN DE LA GUÍA
