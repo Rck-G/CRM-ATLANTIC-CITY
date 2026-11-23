@@ -5,13 +5,14 @@ USE crm_atlantic_city;
 GO
 
 IF OBJECT_ID('dbo.users','U') IS NULL CREATE TABLE dbo.users (
- id CHAR(36) NOT NULL PRIMARY KEY, name NVARCHAR(160) NOT NULL,
+ id CHAR(36) NOT NULL PRIMARY KEY, name NVARCHAR(160) NOT NULL, phone NVARCHAR(60) NULL,
  email NVARCHAR(190) NOT NULL UNIQUE, password_hash NVARCHAR(255) NOT NULL,
  role NVARCHAR(20) NOT NULL CONSTRAINT DF_users_role DEFAULT 'CLIENT'
    CONSTRAINT CK_users_role CHECK (role IN ('ADMIN','EMPLOYEE','MARKETING','CLIENT')),
  client_id CHAR(36) NULL, is_active BIT NOT NULL CONSTRAINT DF_users_active DEFAULT 1, created_at DATETIME2 NOT NULL, updated_at DATETIME2 NOT NULL,
  INDEX idx_users_role NONCLUSTERED (role)
 );
+IF COL_LENGTH('dbo.users','phone') IS NULL ALTER TABLE dbo.users ADD phone NVARCHAR(60) NULL;
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.users') AND name='UX_users_client_id_not_null')
  CREATE UNIQUE INDEX UX_users_client_id_not_null ON dbo.users(client_id) WHERE client_id IS NOT NULL;
 IF OBJECT_ID('dbo.clients','U') IS NULL CREATE TABLE dbo.clients (

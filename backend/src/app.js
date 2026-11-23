@@ -44,6 +44,52 @@ app.post('/api/auth/register',asyncRoute(async(req,res)=>{
  }catch(e){await tx.rollback();if(e.number===2601||e.number===2627)return res.status(409).json({error:'El documento o correo ya está registrado'});throw e;}
 }));
 app.use('/api',auth);
+// Perfil personal: cada sesión solo puede consultar y modificar sus propios datos.
+let profileSchemaReady;
+async function ensureProfileSchema(){if(!profileSchemaReady)profileSchemaReady=db.query("IF COL_LENGTH('dbo.users','phone') IS NULL ALTER TABLE dbo.users ADD phone NVARCHAR(60) NULL").catch(e=>{profileSchemaReady=null;throw e;});return profileSchemaReady;}
+app.get('/api/profile',asyncRoute(async(req,res)=>{
+ await ensureProfileSchema();
+ const r=await db.query(`SELECT u.id,u.name,u.email,COALESCE(u.phone,c.phone) AS phone,u.role,u.client_id,
+  c.dni,c.first_name AS firstName,c.last_name AS lastName,c.birth_date AS birthDate,
+  c.preferences,c.consent_marketing AS consentMarketing
+  FROM dbo.users u LEFT JOIN dbo.clients c ON c.id=u.client_id WHERE u.id=@id`,{id:req.user.id});
+ if(!r.recordset.length)return res.status(404).json({error:'Perfil no encontrado'});
+ res.json(r.recordset[0]);
+}));
+app.patch('/api/profile',asyncRoute(async(req,res)=>{
+ await ensureProfileSchema();
+ const d=req.body||{}, email=String(d.email||'').trim().toLowerCase();
+ if(!/^\S+@\S+\.\S+$/.test(email))return res.status(400).json({error:'Ingresa un correo electrónico válido'});
+ const isClient=req.user.role==='CLIENT';
+ const firstName=String(d.firstName||'').trim(),lastName=String(d.lastName||'').trim();
+ const name=isClient?`${firstName} ${lastName}`.trim():String(d.name||'').trim();
+ const phone=String(d.phone||'').trim();
+ if(!name||name.length>160)return res.status(400).json({error:isClient?'Nombres y apellidos son obligatorios':'El nombre es obligatorio y no debe superar 160 caracteres'});
+ if(phone.length>60)return res.status(400).json({error:'El teléfono no debe superar 60 caracteres'});
+ if(isClient&&(!firstName||!lastName||firstName.length>120||lastName.length>120))return res.status(400).json({error:'Nombres y apellidos son obligatorios'});
+ const tx=new sql.Transaction(await db.getPool());await tx.begin();
+ try{
+  let q=new sql.Request(tx);
+  q.input('id',sql.Char(36),req.user.id).input('name',sql.NVarChar(160),name).input('email',sql.NVarChar(190),email).input('phone',sql.NVarChar(60),phone||null);
+  await q.query('UPDATE dbo.users SET name=@name,email=@email,phone=@phone,updated_at=SYSUTCDATETIME() WHERE id=@id');
+  if(isClient){
+   if(!req.user.client_id)throw new Error('La cuenta no tiene una ficha de cliente asociada');
+   q=new sql.Request(tx);q.input('cid',sql.Char(36),req.user.client_id).input('fn',sql.NVarChar(120),firstName).input('ln',sql.NVarChar(120),lastName).input('email',sql.NVarChar(190),email).input('phone',sql.NVarChar(60),phone||null);
+   await q.query('UPDATE dbo.clients SET first_name=@fn,last_name=@ln,email=@email,phone=@phone,updated_at=SYSUTCDATETIME() WHERE id=@cid');
+  }
+  await tx.commit();await audit(req.user.id,'PROFILE_UPDATED','users',req.user.id);
+  res.json({message:'Perfil actualizado',user:{id:req.user.id,name,email,phone:phone||null,role:req.user.role,client_id:req.user.client_id}});
+ }catch(e){await tx.rollback();if(e.number===2601||e.number===2627)return res.status(409).json({error:'Ese correo ya está asociado a otra cuenta'});throw e;}
+}));
+app.post('/api/profile/password',rateLimit({windowMs:900000,max:5}),asyncRoute(async(req,res)=>{
+ const currentPassword=String(req.body?.currentPassword||''),newPassword=String(req.body?.newPassword||'');
+ if(newPassword.length<10)return res.status(400).json({error:'La nueva contraseña debe tener al menos 10 caracteres'});
+ if(newPassword.length>200)return res.status(400).json({error:'La nueva contraseña es demasiado larga'});
+ const r=await db.query('SELECT password_hash FROM dbo.users WHERE id=@id AND is_active=1',{id:req.user.id});
+ if(!r.recordset.length||!await bcrypt.compare(currentPassword,r.recordset[0].password_hash))return res.status(400).json({error:'La contraseña actual no es correcta'});
+ const hash=await bcrypt.hash(newPassword,12);await db.query('UPDATE dbo.users SET password_hash=@hash,updated_at=SYSUTCDATETIME() WHERE id=@id',{hash,id:req.user.id});
+ await audit(req.user.id,'PROFILE_PASSWORD_CHANGED','users',req.user.id);res.json({message:'Contraseña actualizada correctamente'});
+}));
 const resources={
  clients:{table:'clients',roles:['ADMIN','EMPLOYEE','MARKETING'],fields:{dni:'dni',firstName:'first_name',lastName:'last_name',email:'email',phone:'phone',birthDate:'birth_date',consentMarketing:'consent_marketing',preferences:'preferences'},required:['dni','firstName','lastName'],order:'created_at'},
  campaigns:{table:'campaigns',roles:['ADMIN','MARKETING'],fields:{name:'name',description:'description',status:'status',targetTier:'target_tier',startsAt:'starts_at',endsAt:'ends_at',channel:'channel'},required:['name'],order:'created_at'},

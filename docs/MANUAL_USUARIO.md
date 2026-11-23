@@ -23,3 +23,12 @@ No se ejecuta ninguna integración externa por defecto. El endpoint POS requiere
 
 ## Temas
 El botón de tema alterna claro/oscuro; la preferencia se guarda en el navegador.
+
+## Mi perfil y datos personales
+En la esquina superior derecha, seleccione el círculo con su inicial. También puede abrir su perfil desde el nombre y avatar ubicados al final del menú lateral. Ambas opciones llevan a la misma pantalla.
+
+Desde “Mi perfil”, cualquier usuario autenticado (ADMIN, EMPLOYEE, MARKETING o CLIENT) puede consultar y actualizar sus propios datos. El personal puede modificar su nombre, correo y teléfono. El cliente puede modificar nombres, apellidos, correo y teléfono; estos datos se actualizan también en su ficha de cliente para mantenerlos sincronizados. El documento de identidad se muestra como dato de consulta y no se puede cambiar desde esta pantalla.
+
+El rol, los permisos y el estado de la cuenta no se pueden modificar desde el perfil. Para cambiar la contraseña, ingrese la contraseña actual y escriba la nueva dos veces. La nueva contraseña debe tener al menos 10 caracteres.
+
+La primera vez que se abra o guarde un perfil con esta versión, se agrega automáticamente la columna `phone` a `dbo.users` si todavía no existe. La cuenta conserva su contraseña, rol y demás información.
